@@ -1,0 +1,42 @@
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG DOMAIN=localhost
+ARG COUNTRY=US
+ARG STATE=WA
+ARG LOCALITY=Seattle
+ARG ORGANIZATION=Zlatev
+ARG ORGANIZATIONALUNIT=IT
+ARG EMAIL=zlatevbg@gmail.com
+
+ENV APP_HOME /var/www/html
+ENV USERNAME=www-data
+
+RUN apt-get update -y
+RUN apt-get upgrade -y
+RUN apt-get install software-properties-common -y
+RUN add-apt-repository ppa:ondrej/apache2 -y
+RUN apt-get update -y
+RUN apt-get install apache2 -y
+RUN apt-get install libapache2-mod-fcgid -y
+RUN a2enmod ssl rewrite headers proxy_fcgi setenvif actions fcgid alias
+RUN mkdir -p /etc/apache2/ssl
+
+COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY ./docker/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf
+
+RUN a2ensite default-ssl
+
+RUN openssl req -x509 -nodes -days 36500 -newkey rsa:2048 -keyout /etc/apache2/ssl/server.key -out /etc/apache2/ssl/server.crt -subj "/C=$COUNTRY/ST=$STATE/L=$LOCALITY/O=$ORGANIZATION/OU=$ORGANIZATIONALUNIT/CN=$DOMAIN/emailAddress=$EMAIL"
+
+WORKDIR $APP_HOME
+
+# RUN mkdir public
+# COPY --chown=${USERNAME}:${USERNAME} public/ public
+
+# RUN chown -R ${USERNAME}:${USERNAME} $APP_HOME
+
+EXPOSE 80
+EXPOSE 443
+
+CMD ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
